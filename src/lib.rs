@@ -72,57 +72,57 @@ impl Allocator {
             vkGetDeviceProcAddr: get_get_device_proc_stub,
             vkGetPhysicalDeviceProperties: create_info
                 .instance
-                .fp_v1_0()
+                .commands()
                 .get_physical_device_properties,
             vkGetPhysicalDeviceMemoryProperties: create_info
                 .instance
-                .fp_v1_0()
+                .commands()
                 .get_physical_device_memory_properties,
-            vkAllocateMemory: create_info.device.fp_v1_0().allocate_memory,
-            vkFreeMemory: create_info.device.fp_v1_0().free_memory,
-            vkMapMemory: create_info.device.fp_v1_0().map_memory,
-            vkUnmapMemory: create_info.device.fp_v1_0().unmap_memory,
-            vkFlushMappedMemoryRanges: create_info.device.fp_v1_0().flush_mapped_memory_ranges,
+            vkAllocateMemory: create_info.device.commands().allocate_memory,
+            vkFreeMemory: create_info.device.commands().free_memory,
+            vkMapMemory: create_info.device.commands().map_memory,
+            vkUnmapMemory: create_info.device.commands().unmap_memory,
+            vkFlushMappedMemoryRanges: create_info.device.commands().flush_mapped_memory_ranges,
             vkInvalidateMappedMemoryRanges: create_info
                 .device
-                .fp_v1_0()
+                .commands()
                 .invalidate_mapped_memory_ranges,
-            vkBindBufferMemory: create_info.device.fp_v1_0().bind_buffer_memory,
-            vkBindImageMemory: create_info.device.fp_v1_0().bind_image_memory,
+            vkBindBufferMemory: create_info.device.commands().bind_buffer_memory,
+            vkBindImageMemory: create_info.device.commands().bind_image_memory,
             vkGetBufferMemoryRequirements: create_info
                 .device
-                .fp_v1_0()
+                .commands()
                 .get_buffer_memory_requirements,
             vkGetImageMemoryRequirements: create_info
                 .device
-                .fp_v1_0()
+                .commands()
                 .get_image_memory_requirements,
-            vkCreateBuffer: create_info.device.fp_v1_0().create_buffer,
-            vkDestroyBuffer: create_info.device.fp_v1_0().destroy_buffer,
-            vkCreateImage: create_info.device.fp_v1_0().create_image,
-            vkDestroyImage: create_info.device.fp_v1_0().destroy_image,
-            vkCmdCopyBuffer: create_info.device.fp_v1_0().cmd_copy_buffer,
+            vkCreateBuffer: create_info.device.commands().create_buffer,
+            vkDestroyBuffer: create_info.device.commands().destroy_buffer,
+            vkCreateImage: create_info.device.commands().create_image,
+            vkDestroyImage: create_info.device.commands().destroy_image,
+            vkCmdCopyBuffer: create_info.device.commands().cmd_copy_buffer,
             vkGetBufferMemoryRequirements2KHR: create_info
                 .device
-                .fp_v1_1()
+                .commands()
                 .get_buffer_memory_requirements2,
             vkGetImageMemoryRequirements2KHR: create_info
                 .device
-                .fp_v1_1()
+                .commands()
                 .get_image_memory_requirements2,
-            vkBindBufferMemory2KHR: create_info.device.fp_v1_1().bind_buffer_memory2,
-            vkBindImageMemory2KHR: create_info.device.fp_v1_1().bind_image_memory2,
+            vkBindBufferMemory2KHR: create_info.device.commands().bind_buffer_memory2,
+            vkBindImageMemory2KHR: create_info.device.commands().bind_image_memory2,
             vkGetPhysicalDeviceMemoryProperties2KHR: create_info
                 .instance
-                .fp_v1_1()
+                .commands()
                 .get_physical_device_memory_properties2,
             vkGetDeviceBufferMemoryRequirements: create_info
                 .device
-                .fp_v1_3()
+                .commands()
                 .get_device_buffer_memory_requirements,
             vkGetDeviceImageMemoryRequirements: create_info
                 .device
-                .fp_v1_3()
+                .commands()
                 .get_device_image_memory_requirements,
         };
         #[cfg(feature = "loaded")]
