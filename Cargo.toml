@@ -1,5 +1,5 @@
 [package]
-name = "vk-mem"
+name = "vk-mem-vulkanalia"
 version = "0.3.0"
 authors = ["Graham Wihlidal <graham@wihlidal.ca>"]
 description = "Rust ffi bindings and idiomatic wrapper for AMD Vulkan Memory Allocator (VMA)"
@@ -7,7 +7,7 @@ homepage = "https://github.com/gwihlidal/vk-mem-rs"
 repository = "https://github.com/gwihlidal/vk-mem-rs"
 documentation = "https://docs.rs/vk-mem"
 readme = "README.md"
-keywords = ["vulkan", "vk", "ash", "memory", "allocator"]
+keywords = ["vulkan", "vk", "vulkanalia", "memory", "allocator"]
 categories = ["api-bindings", "rendering", "rendering::engine", "rendering::graphics-api", ]
 license = "MIT/Apache-2.0"
 build = "build.rs"
