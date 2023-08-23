@@ -45,6 +45,7 @@ opt-level = 3
 codegen-units = 1
 
 [features]
-default = []
-generate_bindings=["bindgen"]
-recording=[]
+default = ["loaded"]
+generate_bindings =["bindgen"]
+recording = []
+loaded = []
