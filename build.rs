@@ -125,7 +125,8 @@ fn generate_bindings(output_file: &str) {
         .raw_line("#![allow(non_camel_case_types)]")
         .raw_line("#![allow(non_snake_case)]")
         .raw_line("#![allow(dead_code)]")
-        .raw_line("use ash::vk::*;")
+        //.raw_line("use vulkanalia::prelude::v1_0::*;")
+        .raw_line("use vulkanalia::vk::*;")
         .trust_clang_mangling(false)
         .layout_tests(false)
         .rustified_enum("Vma.*")
@@ -148,7 +149,7 @@ struct FixAshTypes;
 impl bindgen::callbacks::ParseCallbacks for FixAshTypes {
     fn item_name(&self, original_item_name: &str) -> Option<String> {
         if original_item_name.starts_with("Vk") {
-            // Strip `Vk` prefix, will use `ash::vk::*` instead
+            // Strip `Vk` prefix, will use `vk::*` instead
             Some(original_item_name.trim_start_matches("Vk").to_string())
         } else if original_item_name.starts_with("PFN_vk") && original_item_name.ends_with("KHR") {
             // VMA uses a few extensions like `PFN_vkGetBufferMemoryRequirements2KHR`,

@@ -1,4 +1,4 @@
-extern crate ash;
+extern crate vulkanalia;
 extern crate vk_mem;
 
 /*
@@ -11,8 +11,8 @@ fn extension_names() -> Vec<*const i8> {
 }
 
 unsafe extern "system" fn vulkan_debug_callback(
-    _: ash::vk::DebugReportFlagsEXT,
-    _: ash::vk::DebugReportObjectTypeEXT,
+    _: vk::DebugReportFlagsEXT,
+    _: vk::DebugReportObjectTypeEXT,
     _: u64,
     _: usize,
     _: i32,
@@ -21,12 +21,12 @@ unsafe extern "system" fn vulkan_debug_callback(
     _: *mut c_void,
 ) -> u32 {
     println!("{:?}", ::std::ffi::CStr::from_ptr(p_message));
-    ash::vk::FALSE
+    vk::FALSE
 }
 
-fn verify_result(result: ash::vk::Result) {
+fn verify_result(result: vk::Result) {
     match result {
-        ash::vk::Result::SUCCESS => {
+        vk::Result::SUCCESS => {
             // Success
         }
         _ => {

@@ -1,6 +1,6 @@
-use std::mem;
 use crate::ffi;
-use ash::prelude::VkResult;
+use std::mem;
+use vulkanalia::prelude::v1_0::*;
 
 use crate::definitions::*;
 
@@ -11,21 +11,21 @@ pub struct VirtualBlock {
     internal: ffi::VmaVirtualBlock,
 }
 
-
 /// Represents single memory allocation done inside VirtualBlock.
 #[derive(Debug)]
 pub struct VirtualAllocation(ffi::VmaVirtualAllocation);
 unsafe impl Send for VirtualAllocation {}
 unsafe impl Sync for VirtualAllocation {}
 
-
 impl VirtualBlock {
     /// Creates new VirtualBlock object.
     pub fn new(create_info: VirtualBlockCreateInfo) -> VkResult<Self> {
         unsafe {
             let mut internal: ffi::VmaVirtualBlock = mem::zeroed();
-            ffi::vmaCreateVirtualBlock(&create_info.inner as *const _, &mut internal).result()?;
-
+            let result = ffi::vmaCreateVirtualBlock(&create_info.inner as *const _, &mut internal);
+            if result != vk::Result::SUCCESS {
+                return Err(result.into());
+            }
             Ok(VirtualBlock { internal })
         }
     }
@@ -34,19 +34,20 @@ impl VirtualBlock {
     ///
     /// Possible error values:
     ///
-    /// - `ash::vk::Result::ERROR_OUT_OF_DEVICE_MEMORY` - Allocation failed due to not enough free space in the virtual block.
+    /// - `vk::Result::ERROR_OUT_OF_DEVICE_MEMORY` - Allocation failed due to not enough free space in the virtual block.
     ///     (despite the function doesn't ever allocate actual GPU memory)
-    pub unsafe fn allocate(&self, allocation_info: VirtualAllocationCreateInfo) -> VkResult<(VirtualAllocation, u64)> {
+    pub unsafe fn allocate(
+        &self,
+        allocation_info: VirtualAllocationCreateInfo,
+    ) -> VkResult<(VirtualAllocation, u64)> {
         let create_info: ffi::VmaVirtualAllocationCreateInfo = allocation_info.into();
         let mut allocation: ffi::VmaVirtualAllocation = std::mem::zeroed();
         let mut offset = 0;
-        ffi::vmaVirtualAllocate(
-            self.internal,
-            &create_info,
-            &mut allocation,
-            &mut offset,
-        )
-        .result()?;
+        let result =
+            ffi::vmaVirtualAllocate(self.internal, &create_info, &mut allocation, &mut offset);
+        if result != vk::Result::SUCCESS {
+            return Err(result.into());
+        }
         Ok((VirtualAllocation(allocation), offset))
     }
 
@@ -71,7 +72,10 @@ impl VirtualBlock {
     }
 
     /// Returns information about a specific virtual allocation within a virtual block, like its size and user_data pointer.
-    pub unsafe fn get_allocation_info(&self, allocation: &VirtualAllocation) -> VkResult<VirtualAllocationInfo> {
+    pub unsafe fn get_allocation_info(
+        &self,
+        allocation: &VirtualAllocation,
+    ) -> VkResult<VirtualAllocationInfo> {
         let mut allocation_info: ffi::VmaVirtualAllocationInfo = mem::zeroed();
         ffi::vmaGetVirtualAllocationInfo(self.internal, allocation.0, &mut allocation_info);
         Ok(allocation_info.into())

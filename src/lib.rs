@@ -10,10 +10,9 @@ pub use defragmentation::*;
 pub use pool::*;
 pub use virtual_block::*;
 
-use ash::prelude::VkResult;
-use ash::vk;
 use std::mem;
 use std::ops::Deref;
+use vulkanalia::prelude::v1_0::*;
 
 /// Main allocator object
 pub struct Allocator {
@@ -27,7 +26,7 @@ unsafe impl Sync for Allocator {}
 
 /// Represents single memory allocation.
 ///
-/// It may be either dedicated block of `ash::vk::DeviceMemory` or a specific region of a
+/// It may be either dedicated block of `vk::DeviceMemory` or a specific region of a
 /// bigger block of this type plus unique offset.
 ///
 /// Although the library provides convenience functions that create a Vulkan buffer or image,
@@ -50,20 +49,20 @@ impl Allocator {
     /// Constructor a new `Allocator` using the provided options.
     pub fn new<'a, I, D>(mut create_info: AllocatorCreateInfo<'a, I, D>) -> VkResult<Self>
     where
-        I: Deref<Target = ash::Instance>,
-        D: Deref<Target = ash::Device>,
+        I: Deref<Target = Instance>,
+        D: Deref<Target = Device>,
     {
         unsafe extern "system" fn get_instance_proc_addr_stub(
-            _instance: ash::vk::Instance,
+            _instance: vk::Instance,
             _p_name: *const ::std::os::raw::c_char,
-        ) -> ash::vk::PFN_vkVoidFunction {
+        ) -> vk::PFN_vkVoidFunction {
             panic!("VMA_DYNAMIC_VULKAN_FUNCTIONS is unsupported")
         }
 
         unsafe extern "system" fn get_get_device_proc_stub(
-            _device: ash::vk::Device,
+            _device: vk::Device,
             _p_name: *const ::std::os::raw::c_char,
-        ) -> ash::vk::PFN_vkVoidFunction {
+        ) -> vk::PFN_vkVoidFunction {
             panic!("VMA_DYNAMIC_VULKAN_FUNCTIONS is unsupported")
         }
 
@@ -132,13 +131,16 @@ impl Allocator {
         }
         unsafe {
             let mut internal: ffi::VmaAllocator = mem::zeroed();
-            ffi::vmaCreateAllocator(&create_info.inner as *const _, &mut internal).result()?;
+            let result = ffi::vmaCreateAllocator(&create_info.inner as *const _, &mut internal);
+            if result != vk::Result::SUCCESS {
+                return Err(result.into());
+            }
 
             Ok(Allocator { internal })
         }
     }
 
-    /// The allocator fetches `ash::vk::PhysicalDeviceProperties` from the physical device.
+    /// The allocator fetches `vk::PhysicalDeviceProperties` from the physical device.
     /// You can get it here, without fetching it again on your own.
     pub unsafe fn get_physical_device_properties(&self) -> VkResult<vk::PhysicalDeviceProperties> {
         let mut properties = vk::PhysicalDeviceProperties::default();
@@ -150,7 +152,7 @@ impl Allocator {
         Ok(properties)
     }
 
-    /// The allocator fetches `ash::vk::PhysicalDeviceMemoryProperties` from the physical device.
+    /// The allocator fetches `vk::PhysicalDeviceMemoryProperties` from the physical device.
     /// You can get it here, without fetching it again on your own.
     pub unsafe fn get_memory_properties(&self) -> &vk::PhysicalDeviceMemoryProperties {
         let mut properties: *const vk::PhysicalDeviceMemoryProperties = std::ptr::null();
@@ -225,7 +227,7 @@ impl Allocator {
     /// This function also atomically "touches" allocation - marks it as used in current frame,
     /// just like `Allocator::touch_allocation`.
     ///
-    /// If the allocation is in lost state, `allocation.get_device_memory` returns `ash::vk::DeviceMemory::null()`.
+    /// If the allocation is in lost state, `allocation.get_device_memory` returns `vk::DeviceMemory::null()`.
     ///
     /// Although this function uses atomics and doesn't lock any mutex, so it should be quite efficient,
     /// you can avoid calling it too often.
@@ -262,13 +264,13 @@ impl Allocator {
     /// Maps memory represented by given allocation to make it accessible to CPU code.
     /// When succeeded, result is a pointer to first byte of this memory.
     ///
-    /// If the allocation is part of bigger `ash::vk::DeviceMemory` block, the pointer is
+    /// If the allocation is part of bigger `vk::DeviceMemory` block, the pointer is
     /// correctly offseted to the beginning of region assigned to this particular
     /// allocation.
     ///
     /// Mapping is internally reference-counted and synchronized, so despite raw Vulkan
-    /// function `ash::vk::Device::MapMemory` cannot be used to map same block of
-    /// `ash::vk::DeviceMemory` multiple times simultaneously, it is safe to call this
+    /// function `vk::Device::MapMemory` cannot be used to map same block of
+    /// `vk::DeviceMemory` multiple times simultaneously, it is safe to call this
     /// function on allocations assigned to the same memory block. Actual Vulkan memory
     /// will be mapped on first mapping and unmapped on last unmapping.
     ///
@@ -287,13 +289,16 @@ impl Allocator {
     /// time to free the "0-th" mapping made automatically due to `AllocationCreateFlags::MAPPED` flag.
     ///
     /// This function fails when used on allocation made in memory type that is not
-    /// `ash::vk::MemoryPropertyFlags::HOST_VISIBLE`.
+    /// `vk::MemoryPropertyFlags::HOST_VISIBLE`.
     ///
     /// This function always fails when called for allocation that was created with
     /// `AllocationCreateFlags::CAN_BECOME_LOST` flag. Such allocations cannot be mapped.
     pub unsafe fn map_memory(&self, allocation: &mut Allocation) -> VkResult<*mut u8> {
         let mut mapped_data: *mut ::std::os::raw::c_void = ::std::ptr::null_mut();
-        ffi::vmaMapMemory(self.internal, allocation.0, &mut mapped_data).result()?;
+        let result = ffi::vmaMapMemory(self.internal, allocation.0, &mut mapped_data);
+        if result != vk::Result::SUCCESS {
+            return Err(result.into());
+        }
 
         Ok(mapped_data as *mut u8)
     }
@@ -305,53 +310,63 @@ impl Allocator {
 
     /// Flushes memory of given allocation.
     ///
-    /// Calls `ash::vk::Device::FlushMappedMemoryRanges` for memory associated with given range of given allocation.
+    /// Calls `vk::Device::FlushMappedMemoryRanges` for memory associated with given range of given allocation.
     ///
     /// - `offset` must be relative to the beginning of allocation.
-    /// - `size` can be `ash::vk::WHOLE_SIZE`. It means all memory from `offset` the the end of given allocation.
+    /// - `size` can be `vk::WHOLE_SIZE`. It means all memory from `offset` the the end of given allocation.
     /// - `offset` and `size` don't have to be aligned; hey are internally rounded down/up to multiple of `nonCoherentAtomSize`.
     /// - If `size` is 0, this call is ignored.
-    /// - If memory type that the `allocation` belongs to is not `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` or it is `ash::vk::MemoryPropertyFlags::HOST_COHERENT`, this call is ignored.
+    /// - If memory type that the `allocation` belongs to is not `vk::MemoryPropertyFlags::HOST_VISIBLE` or it is `vk::MemoryPropertyFlags::HOST_COHERENT`, this call is ignored.
     pub fn flush_allocation(
         &self,
         allocation: &Allocation,
         offset: usize,
         size: usize,
     ) -> VkResult<()> {
-        unsafe {
+        let result = unsafe {
             ffi::vmaFlushAllocation(
                 self.internal,
                 allocation.0,
                 offset as vk::DeviceSize,
                 size as vk::DeviceSize,
             )
-            .result()
+        };
+
+        if result != vk::Result::SUCCESS {
+            return Err(result.into());
+        } else {
+            Ok(())
         }
     }
 
     /// Invalidates memory of given allocation.
     ///
-    /// Calls `ash::vk::Device::invalidate_mapped_memory_ranges` for memory associated with given range of given allocation.
+    /// Calls `vk::Device::invalidate_mapped_memory_ranges` for memory associated with given range of given allocation.
     ///
     /// - `offset` must be relative to the beginning of allocation.
-    /// - `size` can be `ash::vk::WHOLE_SIZE`. It means all memory from `offset` the the end of given allocation.
+    /// - `size` can be `vk::WHOLE_SIZE`. It means all memory from `offset` the the end of given allocation.
     /// - `offset` and `size` don't have to be aligned. They are internally rounded down/up to multiple of `nonCoherentAtomSize`.
     /// - If `size` is 0, this call is ignored.
-    /// - If memory type that the `allocation` belongs to is not `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` or it is `ash::vk::MemoryPropertyFlags::HOST_COHERENT`, this call is ignored.
+    /// - If memory type that the `allocation` belongs to is not `vk::MemoryPropertyFlags::HOST_VISIBLE` or it is `vk::MemoryPropertyFlags::HOST_COHERENT`, this call is ignored.
     pub fn invalidate_allocation(
         &self,
         allocation: &Allocation,
         offset: usize,
         size: usize,
     ) -> VkResult<()> {
-        unsafe {
+        let result = unsafe {
             ffi::vmaInvalidateAllocation(
                 self.internal,
                 allocation.0,
                 offset as vk::DeviceSize,
                 size as vk::DeviceSize,
             )
-            .result()
+        };
+
+        if result != vk::Result::SUCCESS {
+            return Err(result.into());
+        } else {
+            Ok(())
         }
     }
 
@@ -364,36 +379,43 @@ impl Allocator {
     ///
     /// Possible error values:
     ///
-    /// - `ash::vk::Result::ERROR_FEATURE_NOT_PRESENT` - corruption detection is not enabled for any of specified memory types.
-    /// - `ash::vk::Result::ERROR_VALIDATION_FAILED_EXT` - corruption detection has been performed and found memory corruptions around one of the allocations.
+    /// - `vk::Result::ERROR_FEATURE_NOT_PRESENT` - corruption detection is not enabled for any of specified memory types.
+    /// - `vk::Result::ERROR_VALIDATION_FAILED_EXT` - corruption detection has been performed and found memory corruptions around one of the allocations.
     ///   `VMA_ASSERT` is also fired in that case.
     /// - Other value: Error returned by Vulkan, e.g. memory mapping failure.
-    pub unsafe fn check_corruption(
-        &self,
-        memory_types: ash::vk::MemoryPropertyFlags,
-    ) -> VkResult<()> {
-        ffi::vmaCheckCorruption(self.internal, memory_types.as_raw()).result()
+    pub unsafe fn check_corruption(&self, memory_types: vk::MemoryPropertyFlags) -> VkResult<()> {
+        let result = ffi::vmaCheckCorruption(self.internal, memory_types.bits());
+        if result != vk::Result::SUCCESS {
+            return Err(result.into());
+        } else {
+            Ok(())
+        }
     }
 
     /// Binds buffer to allocation.
     ///
     /// Binds specified buffer to region of memory represented by specified allocation.
-    /// Gets `ash::vk::DeviceMemory` handle and offset from the allocation.
+    /// Gets `vk::DeviceMemory` handle and offset from the allocation.
     ///
     /// If you want to create a buffer, allocate memory for it and bind them together separately,
-    /// you should use this function for binding instead of `ash::vk::Device::bind_buffer_memory`,
-    /// because it ensures proper synchronization so that when a `ash::vk::DeviceMemory` object is
-    /// used by multiple allocations, calls to `ash::vk::Device::bind_buffer_memory()` or
-    /// `ash::vk::Device::map_memory()` won't happen from multiple threads simultaneously
+    /// you should use this function for binding instead of `vk::Device::bind_buffer_memory`,
+    /// because it ensures proper synchronization so that when a `vk::DeviceMemory` object is
+    /// used by multiple allocations, calls to `vk::Device::bind_buffer_memory()` or
+    /// `vk::Device::map_memory()` won't happen from multiple threads simultaneously
     /// (which is illegal in Vulkan).
     ///
     /// It is recommended to use function `Allocator::create_buffer` instead of this one.
     pub unsafe fn bind_buffer_memory(
         &self,
         allocation: &Allocation,
-        buffer: ash::vk::Buffer,
+        buffer: vk::Buffer,
     ) -> VkResult<()> {
-        ffi::vmaBindBufferMemory(self.internal, allocation.0, buffer).result()
+        let result = ffi::vmaBindBufferMemory(self.internal, allocation.0, buffer);
+        if result != vk::Result::SUCCESS {
+            return Err(result.into());
+        } else {
+            Ok(())
+        }
     }
 
     /// Binds buffer to allocation with additional parameters.
@@ -411,38 +433,48 @@ impl Allocator {
         &self,
         allocation: &Allocation,
         allocation_local_offset: vk::DeviceSize,
-        buffer: ash::vk::Buffer,
+        buffer: vk::Buffer,
         next: *const ::std::os::raw::c_void,
     ) -> VkResult<()> {
-        ffi::vmaBindBufferMemory2(
+        let result = ffi::vmaBindBufferMemory2(
             self.internal,
             allocation.0,
             allocation_local_offset,
             buffer,
             next,
-        )
-        .result()
+        );
+
+        if result != vk::Result::SUCCESS {
+            return Err(result.into());
+        } else {
+            Ok(())
+        }
     }
 
     /// Binds image to allocation.
     ///
     /// Binds specified image to region of memory represented by specified allocation.
-    /// Gets `ash::vk::DeviceMemory` handle and offset from the allocation.
+    /// Gets `vk::DeviceMemory` handle and offset from the allocation.
     ///
     /// If you want to create a image, allocate memory for it and bind them together separately,
-    /// you should use this function for binding instead of `ash::vk::Device::bind_image_memory`,
-    /// because it ensures proper synchronization so that when a `ash::vk::DeviceMemory` object is
-    /// used by multiple allocations, calls to `ash::vk::Device::bind_image_memory()` or
-    /// `ash::vk::Device::map_memory()` won't happen from multiple threads simultaneously
+    /// you should use this function for binding instead of `vk::Device::bind_image_memory`,
+    /// because it ensures proper synchronization so that when a `vk::DeviceMemory` object is
+    /// used by multiple allocations, calls to `vk::Device::bind_image_memory()` or
+    /// `vk::Device::map_memory()` won't happen from multiple threads simultaneously
     /// (which is illegal in Vulkan).
     ///
     /// It is recommended to use function `Allocator::create_image` instead of this one.
     pub unsafe fn bind_image_memory(
         &self,
         allocation: &Allocation,
-        image: ash::vk::Image,
+        image: vk::Image,
     ) -> VkResult<()> {
-        ffi::vmaBindImageMemory(self.internal, allocation.0, image).result()
+        let result = ffi::vmaBindImageMemory(self.internal, allocation.0, image);
+        if result != vk::Result::SUCCESS {
+            return Err(result.into());
+        } else {
+            Ok(())
+        }
     }
 
     /// Binds image to allocation with additional parameters.
@@ -460,17 +492,21 @@ impl Allocator {
         &self,
         allocation: &Allocation,
         allocation_local_offset: vk::DeviceSize,
-        image: ash::vk::Image,
+        image: vk::Image,
         next: *const ::std::os::raw::c_void,
     ) -> VkResult<()> {
-        ffi::vmaBindImageMemory2(
+        let result = ffi::vmaBindImageMemory2(
             self.internal,
             allocation.0,
             allocation_local_offset,
             image,
             next,
-        )
-        .result()
+        );
+        if result != vk::Result::SUCCESS {
+            return Err(result.into());
+        } else {
+            Ok(())
+        }
     }
 
     /// Destroys Vulkan buffer and frees allocated memory.
@@ -478,12 +514,12 @@ impl Allocator {
     /// This is just a convenience function equivalent to:
     ///
     /// ```ignore
-    /// ash::vk::Device::destroy_buffer(buffer, None);
+    /// vk::Device::destroy_buffer(buffer, None);
     /// Allocator::free_memory(allocator, allocation);
     /// ```
     ///
     /// It it safe to pass null as `buffer` and/or `allocation`.
-    pub unsafe fn destroy_buffer(&self, buffer: ash::vk::Buffer, allocation: Allocation) {
+    pub unsafe fn destroy_buffer(&self, buffer: vk::Buffer, allocation: Allocation) {
         ffi::vmaDestroyBuffer(self.internal, buffer, allocation.0);
     }
 
@@ -492,12 +528,12 @@ impl Allocator {
     /// This is just a convenience function equivalent to:
     ///
     /// ```ignore
-    /// ash::vk::Device::destroy_image(image, None);
+    /// vk::Device::destroy_image(image, None);
     /// Allocator::free_memory(allocator, allocation);
     /// ```
     ///
     /// It it safe to pass null as `image` and/or `allocation`.
-    pub unsafe fn destroy_image(&self, image: ash::vk::Image, allocation: Allocation) {
+    pub unsafe fn destroy_image(&self, image: vk::Image, allocation: Allocation) {
         ffi::vmaDestroyImage(self.internal, image, allocation.0);
     }
     /// Flushes memory of given set of allocations."]
@@ -515,14 +551,18 @@ impl Allocator {
         sizes: Option<&[vk::DeviceSize]>,
     ) -> VkResult<()> {
         let allocations: Vec<ffi::VmaAllocation> = allocations.into_iter().map(|a| a.0).collect();
-        ffi::vmaFlushAllocations(
+        let result = ffi::vmaFlushAllocations(
             self.internal,
             allocations.len() as u32,
             allocations.as_ptr() as *mut _,
             offsets.map_or(std::ptr::null(), |offsets| offsets.as_ptr()),
             sizes.map_or(std::ptr::null(), |sizes| sizes.as_ptr()),
-        )
-        .result()
+        );
+        if result != vk::Result::SUCCESS {
+            return Err(result.into());
+        } else {
+            Ok(())
+        }
     }
 
     /// Invalidates memory of given set of allocations."]
@@ -540,14 +580,18 @@ impl Allocator {
         sizes: Option<&[vk::DeviceSize]>,
     ) -> VkResult<()> {
         let allocations: Vec<ffi::VmaAllocation> = allocations.into_iter().map(|a| a.0).collect();
-        ffi::vmaInvalidateAllocations(
+        let result = ffi::vmaInvalidateAllocations(
             self.internal,
             allocations.len() as u32,
             allocations.as_ptr() as *mut _,
             offsets.map_or(std::ptr::null(), |offsets| offsets.as_ptr()),
             sizes.map_or(std::ptr::null(), |sizes| sizes.as_ptr()),
-        )
-        .result()
+        );
+        if result != vk::Result::SUCCESS {
+            return Err(result.into());
+        } else {
+            Ok(())
+        }
     }
 }
 

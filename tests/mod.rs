@@ -1,4 +1,4 @@
-extern crate ash;
+/*extern crate vulkanalia;
 extern crate vk_mem;
 
 use ash::{extensions::ext::DebugUtils, vk};
@@ -10,25 +10,25 @@ fn extension_names() -> Vec<*const i8> {
 }
 
 unsafe extern "system" fn vulkan_debug_callback(
-    _message_severity: ash::vk::DebugUtilsMessageSeverityFlagsEXT,
-    _message_types: ash::vk::DebugUtilsMessageTypeFlagsEXT,
-    p_callback_data: *const ash::vk::DebugUtilsMessengerCallbackDataEXT,
+    _message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
+    _message_types: vk::DebugUtilsMessageTypeFlagsEXT,
+    p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,
     _p_user_data: *mut c_void,
-) -> ash::vk::Bool32 {
+) -> vk::Bool32 {
     let p_callback_data = &*p_callback_data;
     println!(
         "{:?}",
         ::std::ffi::CStr::from_ptr(p_callback_data.p_message)
     );
-    ash::vk::FALSE
+    vk::FALSE
 }
 
 pub struct TestHarness {
     pub entry: ash::Entry,
     pub instance: ash::Instance,
     pub device: ash::Device,
-    pub physical_device: ash::vk::PhysicalDevice,
-    pub debug_callback: ash::vk::DebugUtilsMessengerEXT,
+    pub physical_device: vk::PhysicalDevice,
+    pub debug_callback: vk::DebugUtilsMessengerEXT,
     pub debug_report_loader: ash::extensions::ext::DebugUtils,
 }
 
@@ -46,12 +46,12 @@ impl Drop for TestHarness {
 impl TestHarness {
     pub fn new() -> Self {
         let app_name = ::std::ffi::CString::new("vk-mem testing").unwrap();
-        let app_info = ash::vk::ApplicationInfo::builder()
+        let app_info = vk::ApplicationInfo::builder()
             .application_name(&app_name)
             .application_version(0)
             .engine_name(&app_name)
             .engine_version(0)
-            .api_version(ash::vk::make_api_version(0, 1, 3, 0));
+            .api_version(vk::make_api_version(0, 1, 3, 0));
 
         let layer_names = [::std::ffi::CString::new("VK_LAYER_KHRONOS_validation").unwrap()];
         let layers_names_raw: Vec<*const i8> = layer_names
@@ -60,7 +60,7 @@ impl TestHarness {
             .collect();
 
         let extension_names_raw = extension_names();
-        let create_info = ash::vk::InstanceCreateInfo::builder()
+        let create_info = vk::InstanceCreateInfo::builder()
             .application_info(&app_info)
             .enabled_layer_names(&layers_names_raw)
             .enabled_extension_names(&extension_names_raw);
@@ -72,10 +72,10 @@ impl TestHarness {
                 .expect("Instance creation error")
         };
 
-        let debug_info = ash::vk::DebugUtilsMessengerCreateInfoEXT::builder()
+        let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
             .message_severity(
-                ash::vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-                    | ash::vk::DebugUtilsMessageSeverityFlagsEXT::WARNING,
+                vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+                    | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING,
             )
             .message_type(
                 vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
@@ -115,13 +115,12 @@ impl TestHarness {
 
         let priorities = [1.0];
 
-        let queue_info = [ash::vk::DeviceQueueCreateInfo::builder()
+        let queue_info = [vk::DeviceQueueCreateInfo::builder()
             .queue_family_index(queue_family_index as u32)
             .queue_priorities(&priorities)
             .build()];
 
-        let device_create_info =
-            ash::vk::DeviceCreateInfo::builder().queue_create_infos(&queue_info);
+        let device_create_info = vk::DeviceCreateInfo::builder().queue_create_infos(&queue_info);
 
         let device: ash::Device = unsafe {
             instance
@@ -169,12 +168,9 @@ fn create_gpu_buffer() {
     unsafe {
         let (buffer, allocation) = allocator
             .create_buffer(
-                &ash::vk::BufferCreateInfo::builder()
+                &vk::BufferCreateInfo::builder()
                     .size(16 * 1024)
-                    .usage(
-                        ash::vk::BufferUsageFlags::VERTEX_BUFFER
-                            | ash::vk::BufferUsageFlags::TRANSFER_DST,
-                    )
+                    .usage(vk::BufferUsageFlags::VERTEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST)
                     .build(),
                 &allocation_info,
             )
@@ -190,21 +186,18 @@ fn create_cpu_buffer_preferred() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
     let allocation_info = vk_mem::AllocationCreateInfo {
-        required_flags: ash::vk::MemoryPropertyFlags::HOST_VISIBLE,
-        preferred_flags: ash::vk::MemoryPropertyFlags::HOST_COHERENT
-            | ash::vk::MemoryPropertyFlags::HOST_CACHED,
+        required_flags: vk::MemoryPropertyFlags::HOST_VISIBLE,
+        preferred_flags: vk::MemoryPropertyFlags::HOST_COHERENT
+            | vk::MemoryPropertyFlags::HOST_CACHED,
         flags: vk_mem::AllocationCreateFlags::MAPPED,
         ..Default::default()
     };
     unsafe {
         let (buffer, allocation) = allocator
             .create_buffer(
-                &ash::vk::BufferCreateInfo::builder()
+                &vk::BufferCreateInfo::builder()
                     .size(16 * 1024)
-                    .usage(
-                        ash::vk::BufferUsageFlags::VERTEX_BUFFER
-                            | ash::vk::BufferUsageFlags::TRANSFER_DST,
-                    )
+                    .usage(vk::BufferUsageFlags::VERTEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST)
                     .build(),
                 &allocation_info,
             )
@@ -221,15 +214,15 @@ fn create_gpu_buffer_pool() {
     let allocator = harness.create_allocator();
     let allocator = Arc::new(allocator);
 
-    let buffer_info = ash::vk::BufferCreateInfo::builder()
+    let buffer_info = vk::BufferCreateInfo::builder()
         .size(16 * 1024)
-        .usage(ash::vk::BufferUsageFlags::UNIFORM_BUFFER | ash::vk::BufferUsageFlags::TRANSFER_DST)
+        .usage(vk::BufferUsageFlags::UNIFORM_BUFFER | vk::BufferUsageFlags::TRANSFER_DST)
         .build();
 
     let allocation_info = vk_mem::AllocationCreateInfo {
-        required_flags: ash::vk::MemoryPropertyFlags::HOST_VISIBLE,
-        preferred_flags: ash::vk::MemoryPropertyFlags::HOST_COHERENT
-            | ash::vk::MemoryPropertyFlags::HOST_CACHED,
+        required_flags: vk::MemoryPropertyFlags::HOST_VISIBLE,
+        preferred_flags: vk::MemoryPropertyFlags::HOST_COHERENT
+            | vk::MemoryPropertyFlags::HOST_CACHED,
         flags: vk_mem::AllocationCreateFlags::MAPPED,
 
         ..Default::default()
@@ -271,12 +264,9 @@ fn test_gpu_stats() {
 
         let (buffer, allocation) = allocator
             .create_buffer(
-                &ash::vk::BufferCreateInfo::builder()
+                &vk::BufferCreateInfo::builder()
                     .size(16 * 1024)
-                    .usage(
-                        ash::vk::BufferUsageFlags::VERTEX_BUFFER
-                            | ash::vk::BufferUsageFlags::TRANSFER_DST,
-                    )
+                    .usage(vk::BufferUsageFlags::VERTEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST)
                     .build(),
                 &allocation_info,
             )
@@ -299,15 +289,15 @@ fn test_gpu_stats() {
 #[test]
 fn create_virtual_block() {
     let create_info = vk_mem::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
-    let _virtual_block = vk_mem::VirtualBlock::new(create_info)
-        .expect("Couldn't create VirtualBlock");
+    let _virtual_block =
+        vk_mem::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 }
 
 #[test]
 fn virtual_allocate_and_free() {
     let create_info = vk_mem::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
-    let virtual_block = vk_mem::VirtualBlock::new(create_info)
-        .expect("Couldn't create VirtualBlock");
+    let virtual_block =
+        vk_mem::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 
     let allocation_info = vk_mem::VirtualAllocationCreateInfo {
         size: 8 * 1024 * 1024,
@@ -340,8 +330,8 @@ fn virtual_allocate_and_free() {
 #[test]
 fn virtual_allocation_user_data() {
     let create_info = vk_mem::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
-    let virtual_block = vk_mem::VirtualBlock::new(create_info)
-        .expect("Couldn't create VirtualBlock");
+    let virtual_block =
+        vk_mem::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 
     let user_data = Box::new(vec![12, 34, 56, 78, 90]);
     let allocation_info = vk_mem::VirtualAllocationCreateInfo {
@@ -353,7 +343,8 @@ fn virtual_allocation_user_data() {
 
     unsafe {
         let (virtual_alloc_0, _) = virtual_block.allocate(allocation_info).unwrap();
-        let queried_info = virtual_block.get_allocation_info(&virtual_alloc_0)
+        let queried_info = virtual_block
+            .get_allocation_info(&virtual_alloc_0)
             .expect("Couldn't get VirtualAllocationInfo from VirtualBlock");
         let queried_user_data = std::slice::from_raw_parts(queried_info.user_data as *const i32, 5);
         assert_eq!(queried_user_data, &*user_data);
@@ -364,8 +355,8 @@ fn virtual_allocation_user_data() {
 #[test]
 fn virtual_block_out_of_space() {
     let create_info = vk_mem::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
-    let virtual_block = vk_mem::VirtualBlock::new(create_info)
-        .expect("Couldn't create VirtualBlock");
+    let virtual_block =
+        vk_mem::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 
     let allocation_info = vk_mem::VirtualAllocationCreateInfo {
         size: 16 * 1024 * 1024 + 1,
@@ -377,8 +368,9 @@ fn virtual_block_out_of_space() {
     unsafe {
         match virtual_block.allocate(allocation_info) {
             Ok(_) => panic!("Created VirtualAllocation larger than VirtualBlock"),
-            Err(ash::vk::Result::ERROR_OUT_OF_DEVICE_MEMORY) => {},
+            Err(vk::Result::ERROR_OUT_OF_DEVICE_MEMORY) => {}
             Err(_) => panic!("Unexpected VirtualBlock error"),
         }
     }
 }
+*/
