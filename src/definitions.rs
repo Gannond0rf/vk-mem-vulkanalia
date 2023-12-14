@@ -1,3 +1,5 @@
+#![allow(clippy::deprecated_semver)]
+#![allow(clippy::bad_bit_mask)]
 use crate::ffi;
 use bitflags::bitflags;
 use std::marker::PhantomData;
