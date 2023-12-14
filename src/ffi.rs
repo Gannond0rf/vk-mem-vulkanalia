@@ -444,7 +444,7 @@ pub struct VmaPool_T {
 }
 pub type VmaPool = *mut VmaPool_T;
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct VmaAllocation_T {
     _unused: [u8; 0],
 }
