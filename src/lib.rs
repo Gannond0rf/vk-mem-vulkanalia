@@ -593,6 +593,12 @@ impl Allocator {
             Ok(())
         }
     }
+
+    /// Clean up internal allocation instance
+    pub unsafe fn destroy_allocator(&mut self) {
+        ffi::vmaDestroyAllocator(self.internal);
+        self.internal = std::ptr::null_mut();
+    }
 }
 
 /// Custom `Drop` implementation to clean up internal allocation instance
