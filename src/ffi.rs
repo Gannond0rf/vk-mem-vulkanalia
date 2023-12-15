@@ -634,6 +634,7 @@ pub struct VmaAllocatorInfo {
 #[doc = "These are fast to calculate."]
 #[doc = "See functions: vmaGetHeapBudgets(), vmaGetPoolStatistics()."]
 #[repr(C)]
+#[derive(Debug)]
 pub struct VmaStatistics {
     #[doc = " \\brief Number of `VkDeviceMemory` objects - Vulkan memory blocks allocated."]
     pub blockCount: u32,
@@ -668,6 +669,7 @@ pub struct VmaStatistics {
 #[doc = "VkDeviceSize unusedRangeSizeAvg = unusedBytes / detailedStats.unusedRangeCount;"]
 #[doc = "\\endcode"]
 #[repr(C)]
+#[derive(Debug)]
 pub struct VmaDetailedStatistics {
     #[doc = " Basic statistics."]
     pub statistics: VmaStatistics,
@@ -688,6 +690,7 @@ pub struct VmaDetailedStatistics {
 #[doc = "These are slower to calculate. Use for debugging purposes."]
 #[doc = "See function vmaCalculateStatistics()."]
 #[repr(C)]
+#[derive(Debug)]
 pub struct VmaTotalStatistics {
     pub memoryType: [VmaDetailedStatistics; 32usize],
     pub memoryHeap: [VmaDetailedStatistics; 16usize],
