@@ -389,10 +389,10 @@ where
     I: Deref<Target = Instance>,
     D: Deref<Target = Device>,
 {
-    pub fn new(instance: I, device: D, physical_device: vk::PhysicalDevice) -> Self {
+    pub fn new(instance: I, device: D, physical_device: vk::PhysicalDevice, flags: AllocatorCreateFlags) -> Self {
         Self {
             inner: ffi::VmaAllocatorCreateInfo {
-                flags: 0,
+                flags: flags.bits,
                 physicalDevice: physical_device,
                 instance: instance.handle(),
                 device: device.handle(),
