@@ -29,7 +29,7 @@ travis-ci = { repository = "gwihlidal/vk-mem-rs" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]
-vulkanalia = { version = "0.26", features = ["libloading", "window", "provisional"]}
+vulkanalia = { version = "0.33", features = ["libloading", "window", "provisional"]}
 bitflags = "1.2.1"
 
 [build-dependencies]
